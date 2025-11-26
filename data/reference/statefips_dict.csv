@@ -1,0 +1,52 @@
+statefips,state,state_name,region,division
+1,AL,ALABAMA,South,East South Central
+2,AK,ALASKA,West,Pacific
+4,AZ,ARIZONA,West,Mountain
+5,AR,ARKANSAS,South,West South Central
+6,CA,CALIFORNIA,West,Pacific
+8,CO,COLORADO,West,Mountain
+9,CT,CONNECTICUT,Northeast,New England
+10,DE,DELAWARE,South,South Atlantic
+11,DC,DISTRICT OF COLUMBIA,South,South Atlantic
+12,FL,FLORIDA,South,South Atlantic
+13,GA,GEORGIA,South,South Atlantic
+15,HI,HAWAII,West,Pacific
+16,ID,IDAHO,West,Mountain
+17,IL,ILLINOIS,Midwest,East North Central
+18,IN,INDIANA,Midwest,East North Central
+19,IA,IOWA,Midwest,West North Central
+20,KS,KANSAS,Midwest,West North Central
+21,KY,KENTUCKY,South,East South Central
+22,LA,LOUISIANA,South,West South Central
+23,ME,MAINE,Northeast,New England
+24,MD,MARYLAND,South,South Atlantic
+25,MA,MASSACHUSETTS,Northeast,New England
+26,MI,MICHIGAN,Midwest,East North Central
+27,MN,MINNESOTA,Midwest,West North Central
+28,MS,MISSISSIPPI,South,East South Central
+29,MO,MISSOURI,Midwest,West North Central
+30,MT,MONTANA,West,Mountain
+31,NE,NEBRASKA,Midwest,West North Central
+32,NV,NEVADA,West,Mountain
+33,NH,NEW HAMPSHIRE,Northeast,New England
+34,NJ,NEW JERSEY,Northeast,Middle Atlantic
+35,NM,NEW MEXICO,West,Mountain
+36,NY,NEW YORK,Northeast,Middle Atlantic
+37,NC,NORTH CAROLINA,South,South Atlantic
+38,ND,NORTH DAKOTA,Midwest,West North Central
+39,OH,OHIO,Midwest,East North Central
+40,OK,OKLAHOMA,South,West South Central
+41,OR,OREGON,West,Pacific
+42,PA,PENNSYLVANIA,Northeast,Middle Atlantic
+44,RI,RHODE ISLAND,Northeast,New England
+45,SC,SOUTH CAROLINA,South,South Atlantic
+46,SD,SOUTH DAKOTA,Midwest,West North Central
+47,TN,TENNESSEE,South,East South Central
+48,TX,TEXAS,South,West South Central
+49,UT,UTAH,West,Mountain
+50,VT,VERMONT,Northeast,New England
+51,VA,VIRGINIA,South,South Atlantic
+53,WA,WASHINGTON,West,Pacific
+54,WV,WEST VIRGINIA,South,South Atlantic
+55,WI,WISCONSIN,Midwest,East North Central
+56,WY,WYOMING,West,Mountain
