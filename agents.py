@@ -18,16 +18,6 @@ from helper import make_json_safe, log_token_usage
 
 BASE_DIR = Path(__file__).resolve().parent
 
-try:
-    api_key
-except NameError:
-    api_key = None
-
-if api_key:
-    client = OpenAI(api_key= api_key)
-else:
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 LOG_PATH = f"logs/token_usage.csv"
 
@@ -116,7 +106,7 @@ def describe_env(env: dict, env_meta: dict = {}) -> str:
                 lines.append(f"  Metadata: {env_meta[name]}")
     return "\n".join(lines)
 
-def run_python_da_agent(user_prompt: str, metadata_text:str = "", max_steps: int = 3, verbose: bool = False) -> str:
+def run_python_da_agent(user_prompt: str, metadata_text:str = "", max_steps: int = 3, verbose: bool = False, api_key: str = None) -> str:
     """
     user_prompt: the user's question or task.
     metadata_text: text describing available data files and their schemas.
@@ -129,6 +119,10 @@ def run_python_da_agent(user_prompt: str, metadata_text:str = "", max_steps: int
         "error": str or None
         }
     """
+    if api_key is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
+
     messages = [
         {"role": "system", "content": da_agent_prompt},
         {"role": "system", "content": metadata_text},
@@ -248,7 +242,8 @@ def run_data_scientist_agent(
     metadata_text: str = "",
     env_meta: dict = {},
     max_steps: int = 3,
-    verbose: bool = False) -> dict:
+    verbose: bool = False,
+    api_key: str = None) -> dict:
     """
     Run the data scientist agent with:
       - env: runtime data objects
@@ -266,6 +261,10 @@ def run_data_scientist_agent(
           "last_tool_output": dict
         }
     """
+
+    if api_key is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
 
     user_content = (
         f"USER QUESTION:\n{user_prompt}\n\n"
@@ -372,7 +371,7 @@ def run_data_scientist_agent(
         "last_tool_output": last_tool_output,
     }
 
-def run_orchestrator_agent(user_prompt: str, metadata_text: str) -> dict:
+def run_orchestrator_agent(user_prompt: str, metadata_text: str, api_key: str = None) -> dict:
     """
     Call the orchestrator agent to produce a JSON plan with DA/DS prompts.
 
@@ -381,6 +380,10 @@ def run_orchestrator_agent(user_prompt: str, metadata_text: str) -> dict:
       - clarification_question (str or None)
       - plan (list of steps, possibly empty)
     """
+
+    if api_key is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
 
     user_payload = (
         f"{user_prompt}\n\n"
@@ -412,7 +415,7 @@ def run_orchestrator_agent(user_prompt: str, metadata_text: str) -> dict:
         raise ValueError(f"Orchestrator agent returned invalid JSON: {raw_content}")
     return plan_dict
 
-def run_summarize_agent(ds_report: dict, user_prompt: str = "",  metadata_text:str = "", verbose: bool = False) -> str:
+def run_summarize_agent(ds_report: dict, user_prompt: str = "",  metadata_text:str = "", verbose: bool = False, api_key: str = None) -> str:
     """
     Call an agent to summarize the findings from the data scientist report into bullet points.
 
@@ -428,6 +431,10 @@ def run_summarize_agent(ds_report: dict, user_prompt: str = "",  metadata_text:s
     metadata_text : str, optional
         Long-form metadata about the data and variables (e.g. schemas, definitions).
     """
+
+    if api_key is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
     
     ds_report_str = json.dumps(ds_report, indent = 2, ensure_ascii=False)
 
@@ -469,18 +476,23 @@ def run_all_agents(
     metadata_text: str,
     focus: str|None = None,
     max_steps: int = 100,
-    verbose: bool = False
+    verbose: bool = False,
+    OpenAI_API_key: str = None,
 ) -> dict:
     """
     Run the full pipeline: Orchestrator -> DA/DS agents as per plan.
     Returns a dict with final results and reports from each step.
     """
 
+    if OpenAI_API_key is None:
+        OpenAI_API_key = os.getenv("OPENAI_API_KEY")
+
     user_prompt = build_focus(original_question=original_prompt, focus= focus)
 
     orchestrator_output = run_orchestrator_agent(
         user_prompt=user_prompt,
-        metadata_text=metadata_text
+        metadata_text=metadata_text,
+        api_key=OpenAI_API_key
     )
 
     plan = orchestrator_output.get("plan", [])
@@ -523,6 +535,7 @@ def run_all_agents(
                 user_prompt=da_prompt,
                 metadata_text=metadata_text,
                 verbose=verbose,
+                api_key=OpenAI_API_key,
             )
 
         if ds_prompt is not None:
@@ -544,6 +557,7 @@ def run_all_agents(
                 env_meta=ds_meta,
                 max_steps = 5,
                 verbose=verbose,
+                api_key=OpenAI_API_key,
             )
             if verbose:
                 print(f"[DS] Output of DS step {step_id}:\n{output.get('answer')}\n")
@@ -557,7 +571,7 @@ def run_all_agents(
         except:
             pass
 
-    summary_text = run_summarize_agent(ds_report=ds_report, user_prompt=user_prompt, verbose = verbose)
+    summary_text = run_summarize_agent(ds_report=ds_report, user_prompt=user_prompt, verbose = verbose, api_key=OpenAI_API_key)
 
     results = {
         "summary": summary_text,
