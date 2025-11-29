@@ -54,6 +54,7 @@ STYLE & PHILOSOPHY
 - Prefer to **make reasonable, clearly stated assumptions** rather than asking for clarification. 
 - Only set "requires_clarification": true when the question truly cannot be interpreted in a reasonable way. 
 - Make each DA prompt **simple and atomic**
+- A plan MUST have at least one DS step, even for question that can be answered directly using the metadata.
 - It is allowed (and encouraged) to: 
   - Use **multiple DA steps** to build different datasets (e.g. one for Minnesota, one for Midwest), 
   - Then have **one DS step** that combines them (via depends_on and references in the ds_prompt). 
@@ -104,6 +105,7 @@ Rules:
 - Each step must have at least one of {da_prompt, ds_prompt} non-null.
 - No extra keys, no commentary.
 - Every field is required. Do not include any keys other than these.
+- Each plan needs to contain at least one ds_prompt.
 - Return ONLY this JSON object as plain text.
 
 
