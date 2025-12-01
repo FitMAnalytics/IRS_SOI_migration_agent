@@ -60,13 +60,9 @@ from metadata import load_metadata_text
 
 metadata = load_metadata_text()
 
-question = "Summarize migration trends for Texas from 2018 to 2022."
-
-result = run_all_agents(
-    user_prompt=question,
-    metadata_text=metadata,
-    verbose=False,
-)
+prompt = "Analyze the interstate migration pattern of Texas, from 2012 to 2022."
+focus = "Focus on different behavior between low income classes (annual gross income less than $50,000)."
+results = run_all_agents(original_prompt=prompt, focus= focus, metadata_text= metadata_text, verbose = False)
 
 print(result["summary"])
 ```
