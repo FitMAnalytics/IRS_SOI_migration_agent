@@ -26,3 +26,6 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 .ipynb
+
+# claude note
+claude_log/

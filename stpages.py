@@ -3,12 +3,10 @@ import streamlit as st
 
 def verify_api_key(api_key: str) -> bool:
     """
-    Try a tiny OpenAI call to verify the key.
-    You can use models.list() since it's very cheap and simple.
+    Try a cheap OpenAI call to verify the key.
     """
     try:
         client = OpenAI(api_key=api_key)
-        # This will fail quickly if the key is invalid
         client.models.list()
         return True
     except OpenAIError:
