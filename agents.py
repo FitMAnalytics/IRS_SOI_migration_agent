@@ -106,6 +106,77 @@ def describe_env(env: dict, env_meta: dict = {}) -> str:
                 lines.append(f"  Metadata: {env_meta[name]}")
     return "\n".join(lines)
 
+def build_conversation_context(conversation_history: list) -> str:
+    """
+    Format conversation history for orchestrator prompt.
+    Returns a string summarizing previous Q&A.
+    """
+    if not conversation_history or len(conversation_history) == 0:
+        return ""
+
+    context_parts = ["CONVERSATION HISTORY (for context):"]
+    context_parts.append("Use this to understand follow-up questions and reuse prior analyses.\n")
+
+    for i, entry in enumerate(conversation_history[-6:]):  # Last 3 turns (6 messages)
+        if entry["role"] == "user":
+            context_parts.append(f"\nUser Query {i//2 + 1}:")
+            context_parts.append(f"  Question: {entry['content']}")
+            if entry.get("query_metadata", {}).get("focus"):
+                context_parts.append(f"  Focus: {entry['query_metadata']['focus']}")
+        elif entry["role"] == "assistant":
+            resp_meta = entry.get("response_metadata", {})
+            if resp_meta.get("type") == "answer":
+                # Include summary (truncated) and available DFs
+                summary_preview = resp_meta.get("summary", "")[:200] + "..."
+                context_parts.append(f"\nAssistant Response {i//2 + 1}:")
+                context_parts.append(f"  Summary: {summary_preview}")
+                if resp_meta.get("stat_df_keys"):
+                    context_parts.append(f"  Data produced: {', '.join(resp_meta['stat_df_keys'])}")
+
+    return "\n".join(context_parts)
+
+def build_available_dfs_context(available_dataframes: list, shared_meta: dict) -> str:
+    """
+    Tell orchestrator what DataFrames already exist and can be reused.
+    """
+    if not available_dataframes or len(available_dataframes) == 0:
+        return ""
+
+    context_parts = ["\nAVAILABLE DATAFRAMES FROM PRIOR QUERIES:"]
+    context_parts.append("You can reference these in depends_on to reuse prior computations.\n")
+
+    for df_key in available_dataframes:
+        meta = shared_meta.get(df_key, {})
+        summary = meta.get("_summary", "No summary available")
+        context_parts.append(f"- {df_key}: {summary}")
+
+    return "\n".join(context_parts)
+
+def renumber_plan_steps(plan: list, starting_step_id: int) -> list:
+    """
+    Renumber plan step IDs to avoid collisions with prior conversation steps.
+    Also updates depends_on references.
+    """
+    step_id_mapping = {}
+    renumbered_plan = []
+
+    for i, step in enumerate(plan):
+        old_id = step["step_id"]
+        new_id = starting_step_id + i
+        step_id_mapping[old_id] = new_id
+
+        renumbered_step = step.copy()
+        renumbered_step["step_id"] = new_id
+
+        # Update depends_on references
+        renumbered_step["depends_on"] = [
+            step_id_mapping.get(dep_id, dep_id) for dep_id in step["depends_on"]
+        ]
+
+        renumbered_plan.append(renumbered_step)
+
+    return renumbered_plan
+
 def run_python_da_agent(user_prompt: str, metadata_text:str = "", max_steps: int = 3, verbose: bool = False, api_key: str = None) -> str:
     """
     user_prompt: the user's question or task.
@@ -371,7 +442,14 @@ def run_data_scientist_agent(
         "last_tool_output": last_tool_output,
     }
 
-def run_orchestrator_agent(user_prompt: str, metadata_text: str, api_key: str = None) -> dict:
+def run_orchestrator_agent(
+    user_prompt: str,
+    metadata_text: str,
+    api_key: str = None,
+    conversation_history: list = None,
+    available_dataframes: list = None,
+    shared_meta: dict = None
+) -> dict:
     """
     Call the orchestrator agent to produce a JSON plan with DA/DS prompts.
 
@@ -385,9 +463,15 @@ def run_orchestrator_agent(user_prompt: str, metadata_text: str, api_key: str = 
         api_key = os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
+    # Build conversation context
+    conversation_context = build_conversation_context(conversation_history) if conversation_history else ""
+    available_dfs_context = build_available_dfs_context(available_dataframes, shared_meta or {}) if available_dataframes else ""
+
     user_payload = (
-        f"{user_prompt}\n\n"
-        f"METADATA: \n {metadata_text} \n"
+        f"{conversation_context}\n\n"
+        f"{available_dfs_context}\n\n"
+        f"CURRENT USER QUESTION:\n{user_prompt}\n\n"
+        f"METADATA:\n{metadata_text}\n"
     )
 
     messages = [
@@ -478,6 +562,9 @@ def run_all_agents(
     max_steps: int = 100,
     verbose: bool = False,
     OpenAI_API_key: str = None,
+    conversation_history: list = None,
+    shared_env: dict = None,
+    shared_meta: dict = None,
 ) -> dict:
     """
     Run the full pipeline: Orchestrator -> DA/DS agents as per plan.
@@ -489,10 +576,22 @@ def run_all_agents(
 
     user_prompt = build_focus(original_question=original_prompt, focus= focus)
 
+    # Initialize or reuse shared environment
+    if shared_env is None:
+        shared_env = {}
+    if shared_meta is None:
+        shared_meta = {}
+
+    # Track which keys exist before this turn
+    initial_env_keys = set(shared_env.keys())
+
     orchestrator_output = run_orchestrator_agent(
         user_prompt=user_prompt,
         metadata_text=metadata_text,
-        api_key=OpenAI_API_key
+        api_key=OpenAI_API_key,
+        conversation_history=conversation_history,
+        available_dataframes=list(shared_env.keys()),
+        shared_meta=shared_meta
     )
 
     plan = orchestrator_output.get("plan", [])
@@ -501,6 +600,10 @@ def run_all_agents(
         raise ValueError(f"Orchestrator plan has {len(plan)} steps, exceeding max_steps={max_steps}.")
     elif len(plan) == 0:
         raise ValueError("Orchestrator plan is empty; cannot proceed.")
+
+    # Renumber plan steps to avoid collisions with prior turns
+    starting_step_id = max([int(k.split('_')[1]) for k in shared_env.keys() if k.startswith('df_')], default=0) + 1
+    plan = renumber_plan_steps(plan, starting_step_id)
 
     if verbose:
         print(f"Orchestrator plan:\n{plan}\n")
@@ -511,9 +614,6 @@ def run_all_agents(
             "question": orchestrator_output['clarification_question']
         }
         return results
-
-    shared_env = {}
-    shared_meta = {}
     ds_report = {}
     all_figures = []
 
@@ -566,19 +666,28 @@ def run_all_agents(
             all_figures.extend(output.get("figures",[]))
         
         try:
-            shared_env[f"df_{step_id}"] = output.get("dataframe")
-            shared_meta[f"df_{step_id}"] = output.get("metadata")
-        except:
+            df_result = output.get("dataframe")
+            if df_result is not None:
+                shared_env[f"df_{step_id}"] = df_result
+                shared_meta[f"df_{step_id}"] = output.get("metadata", {})
+        except Exception:
             pass
 
     summary_text = run_summarize_agent(ds_report=ds_report, user_prompt=user_prompt, verbose = verbose, api_key=OpenAI_API_key)
 
+    # Calculate new DataFrame keys added in this turn
+    new_df_keys = list(set(shared_env.keys()) - initial_env_keys)
+
     results = {
+        "type": "answer",
         "summary": summary_text,
-        "stat_df": shared_env,
-        "stat_metadata": shared_meta,
+        "stat_df": {k: shared_env[k] for k in new_df_keys},  # Only new DFs
+        "stat_metadata": {k: shared_meta[k] for k in new_df_keys},  # Only new metadata
         "report": ds_report,
         "figures": all_figures,
+        "full_shared_env": shared_env,  # Complete environment
+        "full_shared_meta": shared_meta,  # Complete metadata
+        "new_df_keys": new_df_keys,  # Keys added this turn
     }
 
     return results

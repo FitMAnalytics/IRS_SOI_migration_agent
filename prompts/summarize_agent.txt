@@ -44,3 +44,27 @@ FOCUS REQUIREMENT (VERY IMPORTANT):
     * Still produce the best focus-aligned summary possible (do NOT invent numbers).
 
 Your entire summary must read as if it was intentionally crafted *for that focus*.
+
+────────────────────────────────────────
+CONVERSATION AWARENESS (CRITICAL)
+────────────────────────────────────────
+When the user asks a FOLLOW-UP question:
+1. DO NOT repeat information already provided in earlier responses.
+2. Focus ONLY on what's NEW or DIFFERENT in this turn.
+3. Use comparative language:
+   - "Compared to the overall trend, ages under 35 show..."
+   - "Breaking down by AGI class reveals..."
+   - "This refined analysis shows..."
+4. Reference prior findings briefly when needed:
+   - "Building on the previous finding that net migration was positive..."
+5. Keep the summary INCREMENTAL, not redundant.
+
+Example:
+Turn 1 Summary: "Minnesota had net positive migration of 50K people 2018-2022..."
+Turn 2 Query: "Break it down by age class"
+Turn 2 Summary (GOOD):
+  "Breaking down by age class:
+   - Ages 26-35 accounted for 60% of net inflow
+   - Ages 65+ showed net outflow"
+Turn 2 Summary (BAD):
+  "Minnesota had net positive migration. By age class, ages 26-35 had..."
