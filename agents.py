@@ -631,12 +631,26 @@ def run_all_agents(
             if verbose:
                 print(f"[DA] Running DA step {step_id} with prompt:\n{da_prompt}\n")
 
-            output = run_python_da_agent(
+            da_output = run_python_da_agent(
                 user_prompt=da_prompt,
                 metadata_text=metadata_text,
                 verbose=verbose,
                 api_key=OpenAI_API_key,
             )
+
+            # Save DA output to shared_env immediately
+            if verbose:
+                print(f"[DA] Output of DA step {step_id}")
+            try:
+                da_df = da_output.get("dataframe")
+                if da_df is not None:
+                    shared_env[f"df_{step_id}"] = da_df
+                    shared_meta[f"df_{step_id}"] = da_output.get("metadata", {})
+                    if verbose:
+                        print(f"[DA] Saved df_{step_id} to shared_env")
+            except Exception as e:
+                if verbose:
+                    print(f"[DA] Error saving dataframe: {e}")
 
         if ds_prompt is not None:
             if verbose:
@@ -649,9 +663,11 @@ def run_all_agents(
                 try:
                     ds_env[f"df_{dep}"] = shared_env[f"df_{dep}"]
                     ds_meta[f"df_{dep}"] = shared_meta[f"df_{dep}"]
-                except: 
-                    pass
-            output = run_data_scientist_agent(
+                except KeyError as e:
+                    if verbose:
+                        print(f"[DS] Warning: df_{dep} not found in shared_env")
+
+            ds_output = run_data_scientist_agent(
                 user_prompt=ds_prompt,
                 env=ds_env,
                 env_meta=ds_meta,
@@ -660,18 +676,22 @@ def run_all_agents(
                 api_key=OpenAI_API_key,
             )
             if verbose:
-                print(f"[DS] Output of DS step {step_id}:\n{output.get('answer')}\n")
+                print(f"[DS] Output of DS step {step_id}:\n{ds_output.get('answer')}\n")
 
-            ds_report[f"ds_step_{step_id}"] = output.get("answer")
-            all_figures.extend(output.get("figures",[]))
-        
-        try:
-            df_result = output.get("dataframe")
-            if df_result is not None:
-                shared_env[f"df_{step_id}"] = df_result
-                shared_meta[f"df_{step_id}"] = output.get("metadata", {})
-        except Exception:
-            pass
+            ds_report[f"ds_step_{step_id}"] = ds_output.get("answer")
+            all_figures.extend(ds_output.get("figures",[]))
+
+            # Save DS output to shared_env (may overwrite DA output if both exist)
+            try:
+                ds_df = ds_output.get("dataframe")
+                if ds_df is not None:
+                    shared_env[f"df_{step_id}"] = ds_df
+                    shared_meta[f"df_{step_id}"] = ds_output.get("metadata", {})
+                    if verbose:
+                        print(f"[DS] Saved df_{step_id} to shared_env")
+            except Exception as e:
+                if verbose:
+                    print(f"[DS] Error saving dataframe: {e}")
 
     summary_text = run_summarize_agent(ds_report=ds_report, user_prompt=user_prompt, verbose = verbose, api_key=OpenAI_API_key)
 

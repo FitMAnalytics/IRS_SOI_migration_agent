@@ -114,7 +114,21 @@ def display_conversation_history():
                             for df_key in resp_meta["stat_df_keys"]:
                                 if df_key in st.session_state.shared_env and st.session_state.shared_env[df_key] is not None:
                                     st.write(f"**{df_key}**")
+
+                                    # Display metadata summary if available
+                                    metadata = st.session_state.shared_meta.get(df_key, {})
+                                    if metadata.get("_summary"):
+                                        st.caption(metadata["_summary"])
+
+                                    # Display DataFrame
                                     st.dataframe(st.session_state.shared_env[df_key].head(10), use_container_width=True)
+
+                                    # Display column metadata if available
+                                    column_meta = {k: v for k, v in metadata.items() if k != "_summary"}
+                                    if column_meta:
+                                        with st.expander(f"📋 Column Descriptions ({df_key})"):
+                                            for col, desc in column_meta.items():
+                                                st.markdown(f"- **{col}**: {desc}")
 
 def handle_user_query(user_prompt: str, focus: str = None):
     """Process query, call agents, update history."""
@@ -211,7 +225,21 @@ def handle_user_query(user_prompt: str, focus: str = None):
                 for df_key in new_df_keys:
                     if df_key in st.session_state.shared_env and st.session_state.shared_env[df_key] is not None:
                         st.write(f"**{df_key}**")
+
+                        # Display metadata summary if available
+                        metadata = st.session_state.shared_meta.get(df_key, {})
+                        if metadata.get("_summary"):
+                            st.caption(metadata["_summary"])
+
+                        # Display DataFrame
                         st.dataframe(st.session_state.shared_env[df_key].head(10), use_container_width=True)
+
+                        # Display column metadata if available
+                        column_meta = {k: v for k, v in metadata.items() if k != "_summary"}
+                        if column_meta:
+                            with st.expander(f"📋 Column Descriptions ({df_key})"):
+                                for col, desc in column_meta.items():
+                                    st.markdown(f"- **{col}**: {desc}")
 
         # Update max_step_id
         if new_df_keys:
